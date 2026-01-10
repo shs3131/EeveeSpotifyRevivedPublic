@@ -7,45 +7,33 @@ on:
         description: 'Path to the decrypted Spotify IPA'
         required: true
         default: 'Decrypted IPA/com.spotify.client-9.1.6-Decrypted.ipa'
+      package_scheme:
+        description: 'Package scheme (rootful or rootless)'
+        required: false
+        default: 'rootless'
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     env:
       VERSION: "6.4.8"
       OUTPUT_DIR: "Outputs/IPAS"
-      THEOS_PACKAGE_SCHEME: "rootful" # rootless yapmak istersen workflow_dispatch üzerinden değiştirilebilir
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip zip curl
+      - name: Ensure build script is executable
+        run: chmod +x ./build-ipa-local.sh
 
-          # ivinject ve ipapatch kurulumları (varsayım: Linux için binary mevcut)
-          # Eğer mevcut değilse kendi binary veya brew/linuxbrew kullanımı lazım
-          # Örnek:
-          curl -L -o ivinject-arm64 https://example.com/ivinject-arm64
-          chmod +x ivinject-arm64
-          mv ivinject-arm64 /usr/local/bin/
-
-          curl -L -o ipapatch https://example.com/ipapatch
-          chmod +x ipapatch
-          mv ipapatch /usr/local/bin/
-
-      - name: Ensure output directory exists
-        run: mkdir -p ${{ env.OUTPUT_DIR }}
+      - name: Set package scheme
+        run: echo "THEOS_PACKAGE_SCHEME=${{ github.event.inputs.package_scheme }}" >> $GITHUB_ENV
 
       - name: Build EeveeSpotify IPA
-        run: |
-          chmod +x ./build-ipa-local.sh
-          ./build-ipa-local.sh "${{ github.event.inputs.ipa_path }}"
+        run: ./build-ipa-local.sh "${{ github.event.inputs.ipa_path }}"
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload built IPAs
+        uses: actions/upload-artifact@v4
         with:
           name: EeveeSpotify-IPAs
           path: ${{ env.OUTPUT_DIR }}
