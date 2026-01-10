@@ -1,35 +1,51 @@
-name: Build iOS IPA
+name: Build EeveeSpotify IPA
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      ipa_path:
+        description: 'Path to the decrypted Spotify IPA'
+        required: true
+        default: 'Decrypted IPA/com.spotify.client-9.1.6-Decrypted.ipa'
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    env:
+      VERSION: "6.4.8"
+      OUTPUT_DIR: "Outputs/IPAS"
+      THEOS_PACKAGE_SCHEME: "rootful" # rootless yapmak istersen workflow_dispatch üzerinden değiştirilebilir
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up Ruby (CocoaPods için)
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.3
-
-      - name: Install CocoaPods
+      - name: Set up dependencies
         run: |
-          gem install cocoapods
-          pod install --repo-update
+          sudo apt-get update
+          sudo apt-get install -y unzip zip curl
 
-      - name: Run local IPA build script
+          # ivinject ve ipapatch kurulumları (varsayım: Linux için binary mevcut)
+          # Eğer mevcut değilse kendi binary veya brew/linuxbrew kullanımı lazım
+          # Örnek:
+          curl -L -o ivinject-arm64 https://example.com/ivinject-arm64
+          chmod +x ivinject-arm64
+          mv ivinject-arm64 /usr/local/bin/
+
+          curl -L -o ipapatch https://example.com/ipapatch
+          chmod +x ipapatch
+          mv ipapatch /usr/local/bin/
+
+      - name: Ensure output directory exists
+        run: mkdir -p ${{ env.OUTPUT_DIR }}
+
+      - name: Build EeveeSpotify IPA
         run: |
           chmod +x ./build-ipa-local.sh
-          ./build-ipa-local.sh
+          ./build-ipa-local.sh "${{ github.event.inputs.ipa_path }}"
 
-      - name: Upload IPA
+      - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: EeveeSpotifyIPA
-          path: ./build/*.ipa
+          name: EeveeSpotify-IPAs
+          path: ${{ env.OUTPUT_DIR }}
